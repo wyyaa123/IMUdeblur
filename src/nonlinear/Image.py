@@ -1,4 +1,4 @@
-class Image :
+class Image:
     """
     todo
     """

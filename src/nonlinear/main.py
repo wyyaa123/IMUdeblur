@@ -39,8 +39,8 @@ def segment_nimage(gray: cv.Mat, n: int, overlop: int, vis: bool = None) -> np.a
             right_pixel = overlop if j + 1 and j + 1 != n else 0
             image_blocks[i, j] = gray[i * height_base - up_pixel: (i + 1) * height_base + down_pixel,
                                  j * width_base - left_pixel: (j + 1) * width_base + right_pixel]
-            print("image_blocks[{0}][{1}] is ({2},{3})".
-                  format(i, j, image_blocks[i, j].shape[0], image_blocks[i, j].shape[1]))
+            # print("image_blocks[{0}][{1}] is ({2},{3})".
+            #       format(i, j, image_blocks[i, j].shape[0], image_blocks[i, j].shape[1]))
 
     if vis:
         # 创建一个包含多个子图的图像界面
@@ -147,7 +147,6 @@ def nimage_block_merge(image_blocks: np.array, n: int, overlap: int, vis: bool =
     cnt = 1
     temp_img = temp_imgblock[0]
     for i in range(1, n):
-        print(i)
         temp_img = imgFusion(temp_img, temp_imgblock[i], overlap, temp_imgblock[0].shape, cnt, False)
         cnt += 1
 
@@ -226,7 +225,8 @@ def get_homography(K: np.array, R: np.array, t: np.array, n=np.array([0, 0, 1]),
     return H
 
 
-def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool = None) -> np.array:  # diag = rad
+def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, overlap: int = None,
+                         vis: bool = None) -> np.array:  # diag = rad
     """
     计算每一个图像块的模糊核
     :param image_blocks:图像块数组
@@ -235,13 +235,14 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
     :param vis:# 如果vis=False,则blocks_psf里面的每一个元素是[l,theta], # 如果vis=True,则blocks_psf里面每一个元素都是一个模糊化的图像
     :return:
     """
-    height_base, width_base = image_blocks[0, 0].shape[1], image_blocks[0, 0].shape[0]
+    height_base, width_base = image_blocks[0, 0].shape[0] - 16, image_blocks[0, 0].shape[1] - 16
     blocks_psfs = np.empty((n, n), object)
 
     for i in range(n):
         for j in range(n):
-            # step 1: find the center coordinate of each block in Image coordinate
-            blocki_x, blocki_y = height_base * (2 * i + 1) / 2, width_base * (2 * j + 1) / 2
+            # step 1: find the center coordinate of each block in Image frame
+            blocki_y, blocki_x = height_base * (2 * i + 1) / 2, width_base * (2 * j + 1) / 2
+            print(blocki_x, ", ", blocki_y)
             # step 2: calculate 
             l, theta = calcu_pixel_motion(H, [blocki_x, blocki_y, 1])
             if vis:
@@ -272,6 +273,7 @@ def calcu_pixel_motion(H: np.array, point: np.array) -> np.array:
 
     return np.array([l, theta])
 
+
 """
 def get_motion_psf(shape, angle, dist):
     dist = int(dist)
@@ -295,6 +297,7 @@ def get_motion_psf(shape, angle, dist):
     motion_blur_kernel = motion_blur_kernel / dist
     return motion_blur_kernel
 """
+
 
 def cls_filter(img, kernel, laplacian, gamma):
     """
@@ -369,8 +372,8 @@ if __name__ == '__main__':
     """
 
     image = cv.imread("../../images/image3.png", cv.IMREAD_UNCHANGED)  # 读图, opencv库不指定图像读灰度图的话就算原图是灰度图,图像的属性也是三通道的
-
-    N, extend = 4, 16
+    print(image.shape)
+    N, extend = 16, 16
 
     # kernel = getMotionDsf(75, 60) # 测试线性去模糊的代码注释,用的是最小二乘滤波
     #                               # 对应图片blur 60 75.png意思是点移动60像素,方向是75度
@@ -390,12 +393,16 @@ if __name__ == '__main__':
     #                        [0, 813.4639884474725, 346.8334627145192],
     #                        [0, 0, 1]])
 
-    Intrinsics = np.array([[815.5400764083713, 0, 640],  # 相机内参阵主点为(619.0527171517301, 346.8334627145192)
-                           [0, 813.4639884474725, 360],
+    Intrinsics = np.array([[815.5400764083713, 0, 619.0527171517301],  # 相机内参阵主点为(619.0527171517301, 346.8334627145192)
+                           [0, 813.4639884474725, 346.8334627145192],
                            [0, 0, 1]])
 
-    Rotation = np.array([[0.9848, -0.1736, 0],  # 相机旋转, 旋转矩阵
-                         [0.1736, 0.9848, 0],
+    # Rotation = np.array([[0.9986, -0.05234, 0],  # 相机旋转, 旋转矩阵 3°
+    #                      [0.05234, 0.9986, 0],
+    #                      [0, 0, 1]])
+
+    Rotation = np.array([[0.9961, -0.08716, 0],  # 相机旋转, 旋转矩阵 5°
+                         [0.08716, 0.9961, 0],
                          [0, 0, 1]])
 
     # Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵
@@ -403,15 +410,20 @@ if __name__ == '__main__':
     #                      [0, 0, 1]])
 
     transion = np.array([0, 0, 0])  # 相机位移
+    # transion = np.array([0, 0.05, 0])  # 相机位移
 
     Homograph = get_homography(Intrinsics, Rotation, transion)  # 计算单应矩阵
 
-    # l, theta = calcu_pixel_motion(Homograph, [0, 0, 1]) # 计算像素点的变化对应的像素位移和角度(u0, v0)->(u1, v1), 
+    # l, theta = calcu_pixel_motion(Homograph, [0, 0, 1]) # 计算像素点的变化对应的像素位移和角度(u0, v0)->(u1, v1),
     #                                                     # l是像素位移大小, theta是角度偏移
+    #
+    # print("l is {0}, theta is {1}".format(l, theta))
+    #
+    # kernel = PSF.PSFFunction(l, theta * 180 / np.pi)
 
     # kernel = get_motion_psf(image.shape, 180 * theta / np.pi, l) # 由l和theta计算线性模糊核
-
-    # blur_image = cv.filter2D(image, -1, kernel) # 图像模糊
+    # kernel.calculate_h()
+    # blur_image = cv.filter2D(image, -1, kernel.hh) # 图像模糊
     # cv.imshow("blur", blur_image) #显示图像
     # cv.waitKey()
 
@@ -422,13 +434,14 @@ if __name__ == '__main__':
     # # # block4 = image[block_height:, block_width:]
 
     # beg_time = time.time()
-    image_blocks = segment_nimage(image, N, extend, True)  # 按行顺序存放,vis=True则显示分块后的图像
+    image_blocks = segment_nimage(image, N, extend, False)  # 按行顺序存放,vis=True则显示分块后的图像
     # print("expired {0:.12f} seconds".format(time.time() - beg_time))
     blocks_psf = calcu_each_block_psf(image_blocks=image_blocks, n=N, H=Homograph, vis=True)  # 计算每一块的模糊核,
     # 存放到blocks_psf(np.array)
     # 如果vis=False,
     # 则blocks_psf里面的每一个元素是[l,theta] 如果vis=True,则blocks_psf里面每一个元素都是一个模糊化的图像 for i in range(N): for j in range(N):
     # flag : bool = cv.imwrite("./block{0}{1}.png".format(i, j), blocks_image[i, j]) print(flag) # print(blocks_psf)
-    Raw_image = nimage_block_merge(image_blocks=image_blocks, n=N, overlap=extend, vis=True)  # 显示没有模糊化的原图拼接结果
+    # Raw_image = nimage_block_merge(image_blocks=image_blocks, n=N, overlap=extend, vis=False)  # 显示没有模糊化的原图拼接结果
     blur_image = nimage_block_merge(blocks_psf, N, overlap=extend, vis=True) # 显示模糊化之后的拼接结果,
+    # print(blur_image.shape)
     # 注意calcu_each_block_psf中的vis=True时才可用
