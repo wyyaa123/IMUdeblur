@@ -6,12 +6,13 @@
 # @Author : orCate
 
 """
+import Image
+import PSF
+import cv2 as cv
 import numpy as np
 
-Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵 绕z轴旋转-5°
-                     [0, 2, 0],
-                     [0, 0, 3]])
+image1 = cv.imread("../../images/blur.png", cv.IMREAD_GRAYSCALE)
+image2 = cv.imread("../../images/blur l 33.0 theta 0.png", cv.IMREAD_GRAYSCALE)
 
-point = np.array([1, 1, 1])
-
-print(Rotation @ point)
+Image.image_fft(image1, True)
+Image.image_fft(image2, True)

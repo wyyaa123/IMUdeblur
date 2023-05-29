@@ -4,6 +4,10 @@ from operator import mod
 
 class PSFFunction():
     def __init__(self, _len, _ang):
+        """
+        :param _len: 像素点位移大小
+        :param _ang: 像素点偏移角度大小, 单位为 °
+        """
         self.p2 = _len
         self.p3 = _ang
 

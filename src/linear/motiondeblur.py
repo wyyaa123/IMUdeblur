@@ -90,10 +90,12 @@ def show_imgSpectrum(img):
 
 
 if __name__ == "__main__":
-    gray_img = cv.imread("./images/blur 60 75.png", cv.IMREAD_GRAYSCALE)
+    gray_img = cv.imread("../../images/blur l 33.0 theta 0.png", cv.IMREAD_GRAYSCALE)
     # roi = gray_img[350:720, 875:1280]
     # show_imgSpectrum(gray_img)
-    PSF = getMotionDsf(gray_img.shape, 75, 60)
+    PSF = getMotionDsf(gray_img.shape, 0, 33)
+    # blur_image = cv.filter2D(gray_img, -1, PSF)
+
     laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
     # start_time = time.time()
     # deblur_img = winerFilter(gray_img, PSF, 0.001)

@@ -20,10 +20,10 @@ def image_fft(gray, vis: bool = None) -> None:
     :param gray: 灰度图
     :param vis: 是否显示
     """
-    if gray.image.ndim != 2:
-        gray.image = cv.cvtColor(gray.image, cv.COLOR_BGR2GRAY)
+    if gray.ndim != 2:
+        gray = cv.cvtColor(gray, cv.COLOR_BGR2GRAY)
 
-    fft = np.fft.fft2(gray.image)
+    fft = np.fft.fft2(gray)
     fftShift = np.fft.fftshift(fft)
     # check to see if we are visualizing our output
     if vis:
@@ -288,6 +288,7 @@ def calcu_pixel_motion(H: np.array, point: np.array) -> np.array:
     计算像素运动
     :param H: Homograph
     :param point: pixel coordinate point
+    :return: l(像素点移动的大小), theta(像素点移动的方向角度)
     """
     pixel_coor_bef = point
     pixel_coor_after = H @ pixel_coor_bef
@@ -334,8 +335,9 @@ def cls_filter(img, kernel, laplacian, gamma) -> np.array:
     PSF_fft = np.fft.fft2(kernel, s=img.shape)
     laplacian_fft = np.fft.fft2(laplacian, s=img.shape)
     Filter = np.conj(PSF_fft) / (np.abs(PSF_fft) ** 2 + gamma * (np.abs(laplacian_fft) ** 2))
-    deblur_fft = np.fft.ifft2(Filter * img_fft)
-    deblur_img = np.abs(np.fft.fftshift(deblur_fft))
+    deblur_fft = np.fft.fftshift(Filter * img_fft)
+    deblur_fft = np.fft.ifft2(deblur_fft)
+    deblur_img = np.abs(deblur_fft)
     return deblur_img
 
 
