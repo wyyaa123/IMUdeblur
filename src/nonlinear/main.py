@@ -6,6 +6,7 @@
 import numpy as np
 import cv2 as cv
 import Image
+import time
 
 
 if __name__ == '__main__':
@@ -65,7 +66,7 @@ if __name__ == '__main__':
 
     image = cv.imread("../../images/image3.png", cv.IMREAD_UNCHANGED)  # 读图, opencv库不指定图像读灰度图的话就算原图是灰度
     # 图,图像的属性也是三通道的
-    print(image.shape)
+    # print(image.shape)
     N, extend = 16, 16
 
     # kernel = getMotionDsf(75, 60) # 测试线性去模糊的代码注释,用的是最小二乘滤波
@@ -96,8 +97,8 @@ if __name__ == '__main__':
     #                      [0.05234, 0.9986, 0],
     #                      [0, 0, 1]])
 
-    Rotation = np.array([[0.9961, -0.08716, 0],  # 相机旋转, 旋转矩阵 绕z轴旋转5°
-                         [0.08716, 0.9961, 0],
+    Rotation = np.array([[0.9961, 0.08716, 0],  # 相机旋转, 旋转矩阵 绕z轴旋转-5°
+                         [-0.08716, 0.9961, 0],
                          [0, 0, 1]])
 
     # Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵 绕x轴旋转5°
@@ -112,9 +113,10 @@ if __name__ == '__main__':
     #                      [0, 1, 0],
     #                      [0, 0, 1]])
 
-    transion = np.array([0.05, 0, 0])  # 相机位移
+    transion = np.array([0.1, 0, 0])  # 相机位移
     # transion = np.array([0, 0.05, 0])  # 相机位移
 
+    beg_time = time.time()
     Homograph = Image.get_homography(Intrinsics, Rotation, transion)  # 计算单应矩阵
 
     # l, theta = calcu_pixel_motion(Homograph, [0, 0, 1]) # 计算像素点的变化对应的像素位移和角度(u0, v0)->(u1, v1),
@@ -145,6 +147,7 @@ if __name__ == '__main__':
     # 则blocks_psf里面的每一个元素是[l,theta] 如果vis=True,则blocks_psf里面每一个元素都是一个模糊化的图像 for i in range(N): for j in range(N):
     # flag : bool = cv.imwrite("./block{0}{1}.png".format(i, j), blocks_image[i, j]) print(flag) # print(blocks_psf)
     # Raw_image = nimage_block_merge(image_blocks=image_blocks, n=N, overlap=extend, vis=False)  # 显示没有模糊化的原图拼接结果
-    blur_image = Image.nimage_block_merge(blocks_psf, N, overlap=extend, vis=True) # 显示模糊化之后的拼接结果,
+    blur_image = Image.nimage_block_merge(blocks_psf, N, overlap=extend, vis=False) # 显示模糊化之后的拼接结果,
     # print(blur_image.shape)
     # 注意calcu_each_block_psf中的vis=True时才可用
+    print("elapsed {0:.5f} seconds".format(time.time() - beg_time))

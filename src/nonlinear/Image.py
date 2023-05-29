@@ -8,6 +8,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from functools import singledispatch
 import cv2 as cv
 import math
 import PSF
@@ -94,17 +95,17 @@ def segment_nimage(gray: cv.Mat, n: int, overlop: int, vis: bool = None) -> np.a
     return image_blocks
 
 
-def swap_diag_blocks(self):
+def swap_diag_blocks(gray):
     """
     对角块互换
     """
-    h, w = self.image.shape
+    h, w = gray.shape
     h1 = math.ceil(h / 2)
     w1 = math.ceil(w / 2)
-    mat1 = self.image[0:h1, 0:w1]
-    mat2 = self.image[0:h1, w1:w]
-    mat3 = self.image[h1:h, 0:w1]
-    mat4 = self.image[h1:h, w1:w]
+    mat1 = gray[0:h1, 0:w1]
+    mat2 = gray[0:h1, w1:w]
+    mat3 = gray[h1:h, 0:w1]
+    mat4 = gray[h1:h, w1:w]
 
     temp = np.copy(mat1)
     mat1 = np.copy(mat4)
@@ -265,7 +266,7 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
         for j in range(n):
             # step 1: find the center coordinate of each block in Image frame
             blocki_y, blocki_x = height_base * (2 * i + 1) / 2, width_base * (2 * j + 1) / 2
-            print(blocki_x, ", ", blocki_y)
+            # print(blocki_x, ", ", blocki_y)
             # step 2: calculate
             l, theta = calcu_pixel_motion(H, [blocki_x, blocki_y, 1])
             if vis:
@@ -281,6 +282,7 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
     return blocks_psfs
 
 
+@singledispatch
 def calcu_pixel_motion(H: np.array, point: np.array) -> np.array:
     """
     计算像素运动
@@ -289,6 +291,28 @@ def calcu_pixel_motion(H: np.array, point: np.array) -> np.array:
     """
     pixel_coor_bef = point
     pixel_coor_after = H @ pixel_coor_bef
+    l = np.sqrt(
+        (pixel_coor_after[0] - pixel_coor_bef[0]) ** 2 + (pixel_coor_after[1] - pixel_coor_bef[1]) ** 2)
+    l = np.ceil(l)
+    theta = math.atan2(pixel_coor_bef[1] - pixel_coor_after[1], pixel_coor_after[0] - pixel_coor_bef[0])
+
+    return np.array([l, theta])
+
+
+@calcu_pixel_motion.register(bool)
+def _(H, K: np.array, R: np.array, t: np.array, point: np.array, d1: float) -> np.array:
+    """
+    计算像素运动
+    :param H:花瓶
+    :param K: 内参矩阵
+    :param R: 帧间旋转矩阵
+    :param t: 帧间位移
+    :param point: pixel coordinate point
+    :param point: 相机深度
+    """
+    pixel_coor_bef = point
+    pixel_coor_after = K @ R @ np.linalg.inv(K) @ pixel_coor_bef + 1 / d1 * t
+
     l = np.sqrt(
         (pixel_coor_after[0] - pixel_coor_bef[0]) ** 2 + (pixel_coor_after[1] - pixel_coor_bef[1]) ** 2)
     l = np.ceil(l)
