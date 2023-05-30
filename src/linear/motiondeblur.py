@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # roi = gray_img[350:720, 875:1280]
     # show_imgSpectrum(gray_img)
     PSF = getMotionDsf(gray_img.shape, 0, 33)
-    # blur_image = cv.filter2D(gray_img, -1, PSF)
+    blur_image = cv.filter2D(gray_img, -1, PSF)
 
     laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
     # start_time = time.time()

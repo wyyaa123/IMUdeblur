@@ -94,7 +94,7 @@ class PSFFunction():
 
 # test
 if __name__ == '__main__':
-    PSF = PSFFunction(150, 120)
+    PSF = PSFFunction(33, 0)
     PSF.calculate_h()
     print(PSF.hh)
     np.savetxt('h.csv', PSF.hh, delimiter=',')
