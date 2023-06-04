@@ -122,8 +122,15 @@ def img0_callback(img0: Image):
         # pass
         print("Rij is", Rij)
         print("Ri is", R_i)
-        print("Rj is", R_j)
+        # print("Rj is", R_j)
         print("tij is", tij)
+        print("ti is", t_i)
+        # print("tj is", t_j)
+        
+        R_i = R_j
+        t_i = t_j
+        print("Ri is", R_i)
+        print("Rj is", R_j)
         print("ti is", t_i)
         print("tj is", t_j)
         depth_msg = bridge.cv2_to_imgmsg(depth_image, "passthrough")
@@ -131,9 +138,6 @@ def img0_callback(img0: Image):
     else:
         print("game over!")
         # pass
-    
-    R_i = R_j
-    t_i = t_j
    
     left_imgs.append(img0)
     if np.size(left_imgs) > 2:
