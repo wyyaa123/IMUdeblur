@@ -1,17 +1,21 @@
-# -*- coding: utf-8 -*-
+'''
+Descripttion: todo
+Author: orCate
+Date: 2023-05-19 15:18:54
+LastEditors: orCate
+LastEditTime: 2023-06-07 10:00:05
+'''
 import sys
-import time
-sys.path.append("/home/wyyaa123/IMUdeblur/")
-import rospy
-import lib.Image as _Image
-import lib.PSF as _PSF
-import lib.frame as _Frame
+
+sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
 import numpy as np
 import cv2 as cv
-from cv_bridge import CvBridge
-# import message_filters
-from sensor_msgs.msg import Image
-from nav_msgs.msg import Odometry
+import include.Image as _Image
+import matplotlib.pyplot as plt
+import include.PSF as _PSF
+import include.frame as _Frame
+import time
+
 
 def quaternion_to_Rotation(qu: np.ndarray) -> np.ndarray:
     R = np.zeros((3, 3), dtype=float)
@@ -19,13 +23,14 @@ def quaternion_to_Rotation(qu: np.ndarray) -> np.ndarray:
     R[0, 1] = 2 * (qu[1] * qu[2] - qu[0] * qu[3])
     R[0, 2] = 2 * (qu[1] * qu[3] + qu[0] * qu[2])
     R[1, 0] = 2 * (qu[1] * qu[2] + qu[0] * qu[3])
-    R[1, 1] = qu[0]**2 - qu[1] ** 2 + qu[2] ** 2 - qu[3] ** 2
+    R[1, 1] = qu[0] ** 2 - qu[1] ** 2 + qu[2] ** 2 - qu[3] ** 2
     R[1, 2] = 2 * (qu[2] * qu[3] - qu[0] * qu[1])
     R[2, 0] = 2 * (qu[1] * qu[3] - qu[0] * qu[2])
     R[2, 1] = 2 * (qu[2] * qu[3] + qu[0] * qu[1])
     R[2, 2] = qu[0] ** 2 - qu[1] ** 2 - qu[2] ** 2 + qu[3] ** 2
-    
+
     return R
+
 
 def Roation_to_Euler(R: np.ndarray) -> np.ndarray:
     # 计算欧拉角
@@ -35,187 +40,87 @@ def Roation_to_Euler(R: np.ndarray) -> np.ndarray:
     heading = np.arctan2(R[1, 0], R[1, 1])
     # Roll (绕y轴旋转) r
     roll = np.arctan2(-R[0, 2], R[2, 2])
-    
+
     pitch_deg = np.degrees(pitch)
     heading_deg = np.degrees(heading)
     roll_deg = np.degrees(roll)
-    
+
     return np.array([heading_deg, pitch_deg, roll_deg])
 
-def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: cv.Mat, depth_image: cv.Mat, K: np.ndarray, N: int = 16, overlap: int = 16) -> cv.Mat:
+
+def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: cv.Mat, depth_image: cv.Mat, K: np.ndarray, N: int = 16,
+                 overlap: int = 16) -> cv.Mat:
     image_blocks = _Image.segment_nimage(raw_image, N, overlap, False)
     block_psfs = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap)
-    
+
     laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
-    for row in image_blocks.shape[0]:
-        for col in image_blocks.shape[1]:
-            image_blocks[row, col] = _Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.001)
-    
+    for row in range(image_blocks.shape[0]):
+        for col in range(image_blocks.shape[1]):
+            image_blocks[row, col] = _Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.01)
+
     deblur_image = _Image.nimage_block_merge(image_blocks, N, overlap, False)
     return deblur_image
 
-def img0_callback(img0: Image):
-    global t_i, R_i, depths, frames, img0_pub, depth_image
-    
-    frame_flag: bool = False
-    depth_flag: bool =  False
-    
-    R_j = np.eye(3, dtype=float)
-    t_j = [0, 0, 0]
-    
-    bridge = CvBridge()
-    cv_image = bridge.imgmsg_to_cv2(img0, "mono8")
-    
-    # print("img0的时间戳为", img0.header.stamp.to_sec())
-    
-    for frame in frames: #匹配帧
-        # print("frame的时间戳为", frame.timestamp)
-        if np.abs(img0.header.stamp.to_sec() - frame.timestamp) < 0.03:
-            # print("对应帧匹配成功!")
-            frame_flag = True
-            R_j = frame.Rj
-            t_j = frame.tj
-            
-            print(frame.timestamp)
-            np_frame = np.array(frames)      
-            temp_frame = np_frame == frame
-            # print(temp_depth)
-            indices = np.where(temp_frame == True)
-            # print(indices)
-            frames[:int(indices[0])] = []
-            break
-    
-    for depth in depths: #匹配深度图
-        # print("深度图的时间戳为", depth.header.stamp.to_sec())
-        if np.abs(img0.header.stamp.to_sec() - depth.header.stamp.to_sec()) < 0.03: # 这里如果没有找到匹配的深度图会使用上一帧的深度图
-            # print("对应深度图匹配成功!")
-            
-            # 这一部分这么写是因为只有np数组判断后的结果仍然是一个布尔类型的数组, 列表里哪个元素符合条件, 然后把他之前的所有数据清空
-            # print("深度图的长度为", np.size(depths))
-            np_depth = np.array(depths)      
-            temp_depth = np_depth == depth
-            # print(temp_depth)
-            indices = np.where(temp_depth == True)
-            # print(indices)
-            depths[:int(indices[0])] = []
-            
-            depth_flag = True
-            depth_image = bridge.imgmsg_to_cv2(depth, "passthrough") #16UC1
-            depth_image.astype(np.uint16) #转为无符号16位
-            # print(depth_image.shape)
-            break
-        
-    if not depth_flag: # 直接全部清空
-        depths = []
-        
-    # print("the size of depths is", np.size(depths))
-        
-    if frame_flag: #得到深度图和匹配帧
-        print("OK!")
-        
-        Rij  = R_j * np.linalg.inv(R_i)
-        tij = t_j - Rij @ t_i
-        # deblur_image = None
-        # deblur_image = deblur_byIMU(Rij, tij, cv_image, depth_image, K, 16, 16)  
-        # deblur_image_msg = bridge.cv2_to_imgmsg(deblur_image, "passthrough")
-        # img0_pub.publish(deblur_image_msg)
-        # pass
-        print("Rij is", Rij)
-        print("Ri is", R_i)
-        # print("Rj is", R_j)
-        print("tij is", tij)
-        print("ti is", t_i)
-        # print("tj is", t_j)
-        
-        R_i = R_j
-        t_i = t_j
-        print("Ri is", R_i)
-        print("Rj is", R_j)
-        print("ti is", t_i)
-        print("tj is", t_j)
-        depth_msg = bridge.cv2_to_imgmsg(depth_image, "passthrough")
-        img0_pub.publish(depth_msg)
-    else:
-        print("game over!")
-        # pass
-   
-    left_imgs.append(img0)
-    if np.size(left_imgs) > 2:
-        left_imgs.pop(0)
-    
-    # pass
-    # print("img0 callback!")
 
-def img1_callback(img1: Image):    
-    global img1_pub
-    
-    right_imgs.append(img1)
-    if np.size(right_imgs) > 2:
-        right_imgs.pop(0)
-        
-    img1_pub.publish(img1)
-    # pass
-    # print("img1 callback!")
+if __name__ == '__main__':
+    # R_i = np.array([[0.02964806, 0.99948285, 0.01248415], # 1685622900.402839
+    #                [-0.01521195, 0.01293936, -0.99980098],
+    #                [-0.99944506, 0.02945224, 0.01558771]])
 
-def depth_callback(depth: Image):
-           
-    depths.append(depth)
-    if np.size(depths) > 100:
-        depths.pop(0)
-    # pass
-    # print("depth callback!") 
-    
-    
-def imu_callback(pose_j: Odometry):
-    # global R_i, t_i
-    # print("imu callback!")
-    global frames
-    R_j = quaternion_to_Rotation(np.array([pose_j.pose.pose.orientation.w, pose_j.pose.pose.orientation.x, 
-                                           pose_j.pose.pose.orientation.y, pose_j.pose.pose.orientation.z]))
-    
-    # print("R_j is", R_j)
-    
-    t_j = np.array([pose_j.pose.pose.position.x, pose_j.pose.pose.position.y, pose_j.pose.pose.position.z])
-    
-    frame_j = _Frame.Frame(pose_j.header.stamp.to_sec(), Rj=R_j, tj=t_j)
-    
-    frames.append(frame_j)
-    if np.size(frames) > 1e2:
-        frames.pop(0)
-    # print("t_j is", t_j)
-    
-    # Rij = R_j @ np.linalg.inv(R_i)
-    # tij = t_j - Rij @ t_i
-    
-    # R_i = R_j
-    # t_i = t_j
-    
-    # print("Rij is ", Rij)
-    # print("tij is", tij)
-    
-if __name__ == "__main__":          
-    rospy.init_node("deblur_node") #初始化ros节点  
+    # R_j = np.array([[0.03134772, 0.99933626, 0.01863067],
+    #                [-0.01285934, 0.01904152, -0.99973737],
+    #                [-0.99942719, 0.03109986, 0.0134477 ]])
 
-    # pose_i = Odometry()
-    R_i = np.eye(3, dtype=float)
-    t_i = np.array([0, 0, 0], dtype=float)
-    depth_image = np.ones((400, 640), dtype=np.uint16)
-    
-    frames = []
-    depths = []
-    left_imgs = []
-    right_imgs = []
-    
+    # t_i = np.array([0.19998459, -0.21885501, 0.01411131])
+    # t_j = np.array([0.21272098, -0.22780293, 0.01434683])
+
+    # R_i = np.array([[0.01656386, 0.98862055, 0.1496011], # 1685622902.8751712
+    #                [-0.07176211, 0.1504112, -0.98602845],
+    #                [-0.99729698, 0.00559668, 0.07343595]])
+
+    # R_j = np.array([[0.02266376, 0.9863049, 0.16347437],
+    #                [-0.07180252, 0.16469991, -0.98374448],
+    #                [-0.99717883, 0.01055729, 0.07455059]])
+
+    # t_i = np.array([1.08159584, -0.22992354, -0.03657288])
+    # t_j = np.array([1.13673438, -0.23298174, -0.03948713])
+
+    R_i = np.array([[0.02123373, 0.95523879, 0.29514681],  # 1685622903.20405
+                    [-0.04231862, 0.29580751, -0.9543326],
+                    [-0.99890036, 0.00777367, 0.04670446]])
+
+    R_j = np.array([[0.02433315, 0.95344428, 0.30069328],  # 1685622903.2540727
+                    [-0.06882506, 0.30166633, -0.95096008],
+                    [-0.9973643, 0.00244454, 0.072959]])
+
+    t_i = np.array([1.50853111, -0.18809431, -0.02557929])  # 1685622903.20405
+    t_j = np.array([1.56890657, -0.17458322, -0.02635776])  # 1685622903.2540727
+
     K = np.array([[407.76044960599006, 0, 309.58075680219565],
                   [0, 406.5997999128962, 193.42444301176783],
                   [0, 0, 1]])
-    
-    img0_sub = rospy.Subscriber("/stereo_inertial_publisher/left/image_rect", Image, img0_callback)
-    img1_sub = rospy.Subscriber("/stereo_inertial_publisher/right/image_rect", Image, img1_callback)
-    depth_sub = rospy.Subscriber("/stereo_inertial_publisher/stereo/depth", Image, depth_callback)
-    imu_propagate_sub = rospy.Subscriber("/vins_estimator/imu_propagate", Odometry, imu_callback)
-    
-    img0_pub = rospy.Publisher("/left_image", Image, queue_size=10)
-    img1_pub = rospy.Publisher("/right_image", Image, queue_size=10)
-    
-    rospy.spin()
+
+    blur_image = cv.imread("./blur_image.png", cv.IMREAD_GRAYSCALE)
+    depth_image = cv.imread("./depth_image.png", cv.IMREAD_ANYDEPTH)
+
+    # depth_image = np.load("./1686021820_443643.npy")
+
+    T_imu_to_cam = np.array([[0.00647089, -0.99997884, -0.00066787, 0.05393405],
+                             [0.99997256, 0.00646844, 0.00361214, 0.01340939],
+                             [-0.00360775, -0.00069122, 0.99999325, -0.00295812],
+                             [0., 0., 0., 1.]])
+
+    R_imu_to_cam = T_imu_to_cam[0:3, 0:3]
+    t_imu_to_cam = T_imu_to_cam[0:3, 3:4].flatten()
+
+    # beg_time = time.time()
+    Rij = R_j @ np.linalg.inv(R_i)
+    tij = t_j - Rij @ t_i
+    tij = R_imu_to_cam.T @ Rij @ t_imu_to_cam + R_imu_to_cam.T @ tij - R_imu_to_cam @ t_imu_to_cam
+    Rij = R_imu_to_cam.T @ Rij @ R_imu_to_cam
+
+    deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
+    # print("elasped {0:.6f} seconds".format(time.time() - beg_time))
+    # 显示灰度图像
+    cv.imshow("deblur_image", deblur_image / 255)
+    cv.waitKey()

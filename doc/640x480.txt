@@ -1,0 +1,21 @@
+Intrinsic of "Depth" / 640x480 / {Z16}
+  Width:      	640
+  Height:     	480
+  PPX:        	317.501037597656
+  PPY:        	239.28889465332
+  Fx:         	380.669311523438
+  Fy:         	380.669311523438
+  Distortion: 	Brown Conrady
+  Coeffs:     	0  	0  	0  	0  	0
+  FOV (deg):  	80.1 x 64.46
+
+ Intrinsic of "Color" / 640x480 / {YUYV/RGB8/BGR8/RGBA8/BGRA8/Y16}
+  Width:      	640
+  Height:     	480
+  PPX:        	329.242095947266
+  PPY:        	231.726593017578
+  Fx:         	604.854614257812
+  Fy:         	605.023071289062
+  Distortion: 	Inverse Brown Conrady
+  Coeffs:     	0  	0  	0  	0  	0
+  FOV (deg):  	55.75 x 43.27

@@ -3,12 +3,14 @@
 # @Time : 2023-05-28 16:31
 # @Author : orCate
 
+import sys
+sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import singledispatch
 import cv2 as cv
 import math
-import lib.PSF as PSF
+import include.PSF as PSF
 
 
 def image_fft(gray, vis: bool = None) -> None:
@@ -292,8 +294,8 @@ def _(H, image_blocks: np.ndarray, depth_image: np.ndarray, N: int, K: np.ndarra
     for i in range(N):
         for j in range(N):
             blocki_y, blocki_x = height_base * (2 * i + 1) / 2, width_base * (2 * j + 1) / 2
-            depth = depth_image[int(blocki_y), int(blocki_x)]
-            l, theta = calcu_pixel_motion(False, K, Rij, tij, [blocki_x, blocki_y, 1], depth)
+            depth = 500 if not depth_image[int(blocki_y), int(blocki_x)] else depth_image[int(blocki_y), int(blocki_x)] # 32 bits images should be in meters, and 16 bits should be in mm
+            l, theta = calcu_pixel_motion(False, K, Rij, tij, [blocki_x, blocki_y, 1], depth * 1e-3)
             kernel = PSF.PSFFunction(l ,np.degrees(theta))
             kernel.calculate_h()
             blocks_psfs[i][j] = kernel.hh
