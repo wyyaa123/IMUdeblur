@@ -3,7 +3,7 @@ Descripttion: todo
 Author: orCate
 Date: 2023-05-19 15:18:54
 LastEditors: orCate
-LastEditTime: 2023-06-07 10:00:05
+LastEditTime: 2023-06-08 09:50:50
 '''
 import sys
 
@@ -18,6 +18,8 @@ import time
 
 
 def quaternion_to_Rotation(qu: np.ndarray) -> np.ndarray:
+    """
+    """
     R = np.zeros((3, 3), dtype=float)
     R[0, 0] = qu[0] ** 2 + qu[1] ** 2 - qu[2] ** 2 - qu[3] ** 2
     R[0, 1] = 2 * (qu[1] * qu[2] - qu[0] * qu[3])
@@ -33,6 +35,8 @@ def quaternion_to_Rotation(qu: np.ndarray) -> np.ndarray:
 
 
 def Roation_to_Euler(R: np.ndarray) -> np.ndarray:
+    """
+    """
     # 计算欧拉角
     # Pitch (绕x轴旋转) θ
     pitch = np.arcsin(R[1, 2])
@@ -48,15 +52,18 @@ def Roation_to_Euler(R: np.ndarray) -> np.ndarray:
     return np.array([heading_deg, pitch_deg, roll_deg])
 
 
-def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: cv.Mat, depth_image: cv.Mat, K: np.ndarray, N: int = 16,
-                 overlap: int = 16) -> cv.Mat:
+def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: np.ndarray, depth_image: np.ndarray, K: np.ndarray, N: int = 16,
+                 overlap: int = 16) -> np.ndarray:
+    """
+    """
     image_blocks = _Image.segment_nimage(raw_image, N, overlap, False)
     block_psfs = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap)
 
     laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
     for row in range(image_blocks.shape[0]):
         for col in range(image_blocks.shape[1]):
-            image_blocks[row, col] = _Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.01)
+            # image_blocks[row, col] = _Image.winerFilter(image_blocks[row, col], block_psfs[row, col], 0.1, 0.001)
+            image_blocks[row, col] = _Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.005)
 
     deblur_image = _Image.nimage_block_merge(image_blocks, N, overlap, False)
     return deblur_image
@@ -103,6 +110,11 @@ if __name__ == '__main__':
     blur_image = cv.imread("./blur_image.png", cv.IMREAD_GRAYSCALE)
     depth_image = cv.imread("./depth_image.png", cv.IMREAD_ANYDEPTH)
 
+    # sharp_image = cv.imread("./sharp.png", cv.IMREAD_GRAYSCALE)
+
+    # cv.imshow("rsize", sharp_image)
+    # cv.waitKey()
+
     # depth_image = np.load("./1686021820_443643.npy")
 
     T_imu_to_cam = np.array([[0.00647089, -0.99997884, -0.00066787, 0.05393405],
@@ -113,14 +125,19 @@ if __name__ == '__main__':
     R_imu_to_cam = T_imu_to_cam[0:3, 0:3]
     t_imu_to_cam = T_imu_to_cam[0:3, 3:4].flatten()
 
-    # beg_time = time.time()
     Rij = R_j @ np.linalg.inv(R_i)
     tij = t_j - Rij @ t_i
     tij = R_imu_to_cam.T @ Rij @ t_imu_to_cam + R_imu_to_cam.T @ tij - R_imu_to_cam @ t_imu_to_cam
     Rij = R_imu_to_cam.T @ Rij @ R_imu_to_cam
 
+    beg_time = time.time()
     deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
-    # print("elasped {0:.6f} seconds".format(time.time() - beg_time))
+    print("elasped {0:.6f} seconds".format(time.time() - beg_time))
     # 显示灰度图像
-    cv.imshow("deblur_image", deblur_image / 255)
+    # plt.imshow(deblur_image, cmap='gray')
+    # plt.axis('off')  # 关闭坐标轴
+    # plt.show()
+    
+    cv.imshow("deblur", deblur_image / 256)
     cv.waitKey()
+

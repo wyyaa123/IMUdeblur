@@ -3,10 +3,10 @@
 ```
 
 
-Device info:
+Device info: 
     Name                          : 	Intel RealSense D435I
-    Serial Number                 : 	115222071268
-    Firmware Version              : 	05.14.00.00
+    Serial Number                 : 	233522072766
+    Firmware Version              : 	05.13.00.55
     Recommended Firmware Version  : 	05.14.00.00
     Physical Port                 : 	/sys/devices/pci0000:00/0000:00:08.1/0000:04:00.3/usb4/4-2/4-2:1.0/video4linux/video0
     Debug Op Code                 : 	15
@@ -15,8 +15,8 @@ Device info:
     Camera Locked                 : 	YES
     Usb Type Descriptor           : 	3.2
     Product Line                  : 	D400
-    Asic Serial Number            : 	108223051370
-    Firmware Update Id            : 	108223051370
+    Asic Serial Number            : 	244523062104
+    Firmware Update Id            : 	244523062104
 
 Stream Profiles supported by Stereo Module
  Supported modes:
@@ -326,7 +326,8 @@ Stream Profiles supported by RGB Camera
 Stream Profiles supported by Motion Module
  Supported modes:
     stream       resolution      fps       format   
-    Accel	 N/A		@ 250Hz	   MOTION_XYZ32F
-    Accel	 N/A		@ 63Hz	   MOTION_XYZ32F
+    Accel	 N/A		@ 200Hz	   MOTION_XYZ32F
+    Accel	 N/A		@ 100Hz	   MOTION_XYZ32F
     Gyro	 N/A		@ 400Hz	   MOTION_XYZ32F
     Gyro	 N/A		@ 200Hz	   MOTION_XYZ32F
+
