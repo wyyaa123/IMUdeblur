@@ -277,7 +277,6 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
                 # kernel = get_motion_psf(image_blocks[i, j].shape, theta * 180 / np.pi, l)
                 # blurred = cv.filter2D(image_blocks[i, j], -1, kernel, borderType=cv.BORDER_REPLICATE)
                 blocks_psfs[i, j] = blurred
-                psfs_image[i][j] = kernel_compliant(kernel.hh, image_blocks[i][j].shape)
             else:
                 blocks_psfs[i][j] = np.array([l, theta])
 

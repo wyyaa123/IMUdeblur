@@ -97,9 +97,9 @@ if __name__ == '__main__':
     #                      [0.05234, 0.9986, 0],
     #                      [0, 0, 1]])
 
-    Rotation = np.array([[0.9961, 0.08716, 0],  # 相机旋转, 旋转矩阵 绕z轴旋转-5°
-                         [-0.08716, 0.9961, 0],
-                         [0, 0, 1]])
+    # Rotation = np.array([[0.9961, 0.08716, 0],  # 相机旋转, 旋转矩阵 绕z轴旋转-5°
+    #                      [-0.08716, 0.9961, 0],
+    #                      [0, 0, 1]])
 
     # Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵 绕x轴旋转5°
     #                      [0, 0.9961, 0.08716],
@@ -109,9 +109,9 @@ if __name__ == '__main__':
     #                      [0, 1, 0],
     #                      [0.08716, 0, 0.9961]])
 
-    # Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵
-    #                      [0, 1, 0],
-    #                      [0, 0, 1]])
+    Rotation = np.array([[1, 0, 0],  # 相机旋转, 旋转矩阵
+                         [0, 1, 0],
+                         [0, 0, 1]])
 
     transion = np.array([0.1, 0, 0])  # 相机位移
     # transion = np.array([0, 0.05, 0])  # 相机位移
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     # 则blocks_psf里面的每一个元素是[l,theta] 如果vis=True,则blocks_psf里面每一个元素都是一个模糊化的图像 for i in range(N): for j in range(N):
     # flag : bool = cv.imwrite("./block{0}{1}.png".format(i, j), blocks_image[i, j]) print(flag) # print(blocks_psf)
     # Raw_image = nimage_block_merge(image_blocks=image_blocks, n=N, overlap=extend, vis=False)  # 显示没有模糊化的原图拼接结果
-    blur_image = Image.nimage_block_merge(blocks_psf, N, overlap=extend, vis=False) # 显示模糊化之后的拼接结果
+    blur_image = Image.nimage_block_merge(blocks_psf, N, overlap=extend, vis=True) # 显示模糊化之后的拼接结果
     # print(blur_image.shape)
     # 注意calcu_each_block_psf中的vis=True时才可用
     print("elapsed {0:.5f} seconds".format(time.time() - beg_time))
