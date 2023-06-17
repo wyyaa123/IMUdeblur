@@ -44,7 +44,7 @@ def image_fft(gray, vis: bool = None) -> None:
         plt.show()
 
 
-def segment_nimage(gray: cv.Mat, n: int, overlop: int, vis: bool = None) -> np.array:
+def segment_nimage(gray: np.ndarray, n: int, overlop: int, vis: bool = None) -> np.array:
     """
     分割图像,分成NxN份
     :param gray:灰度图
@@ -261,6 +261,7 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
     """
     height_base, width_base = image_blocks[0, 0].shape[0] - 16, image_blocks[0, 0].shape[1] - 16
     blocks_psfs = np.empty((n, n), object)
+    psfs_image = np.zeros((n, n), dtype=np.ndarray)
 
     for i in range(n):
         for j in range(n):
@@ -276,6 +277,7 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
                 # kernel = get_motion_psf(image_blocks[i, j].shape, theta * 180 / np.pi, l)
                 # blurred = cv.filter2D(image_blocks[i, j], -1, kernel, borderType=cv.BORDER_REPLICATE)
                 blocks_psfs[i, j] = blurred
+                psfs_image[i][j] = kernel_compliant(kernel.hh, image_blocks[i][j].shape)
             else:
                 blocks_psfs[i][j] = np.array([l, theta])
 
