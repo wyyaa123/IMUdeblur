@@ -3,7 +3,7 @@ Descripttion: todo
 Author: orCate
 Date: 2023-05-19 15:18:54
 LastEditors: orCate
-LastEditTime: 2023-06-17 15:34:06
+LastEditTime: 2023-06-17 19:15:51
 '''
 import sys
 
@@ -93,9 +93,10 @@ def make_motionblur(Rij: np.ndarray, tij: np.ndarray, raw_image: np.ndarray, dep
     """
     image_blocks = _Image.segment_nimage(raw_image, N, overlap, False)
 
-    block_psfs, _ = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap, True)
+    block_psfs, psfs_images = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap, True)
 
     motion_blur_image = _Image.nimage_block_merge(block_psfs, N, overlap, False)
+    psfs_merge = _Image.nimage_block_merge(psfs_images, N, overlap, True)
     return motion_blur_image
 
 
@@ -184,42 +185,51 @@ if __name__ == '__main__':
 
     # =============================================================================================
 
-    blur_image = cv.imread("./1686660103.600574.png", cv.IMREAD_GRAYSCALE)
-    depth_image = np.load("./1686660103.600574.npy")
+    # blur_image = cv.imread("./1686660103.600574.png", cv.IMREAD_GRAYSCALE)
+    # depth_image = np.load("./1686660103.600574.npy")
+    
     # scaled_image = cv.normalize(depth_image, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
     # # test_image = depth_image / 256
     # plt.imshow(depth_image, cmap="gray")
     # plt.show()
-    # sharp_image = cv.imread("./test1/1686713423.894630.png", cv.IMREAD_GRAYSCALE)
+    sharp_image = cv.imread("./test1/1686713423.894630.png", cv.IMREAD_GRAYSCALE)
 
     # cv.imshow("rsize", sharp_image)
     # cv.waitKey()
 
-    # depth_image = np.load("./test1/1686713423.894630.npy")
+    depth_image = np.load("./test1/1686713423.894630.npy")
 
     K = np.array([[591.9406904278699, 0, 322.04277865756234],
                   [0, 591.2925794176291, 248.3881726957238],
                   [0, 0, 1]])
 
-    T_imu_to_cam = np.array([[0.99972615, -0.02192887, -0.00817016, -0.02054695],
-                             [0.02192867, 0.99975953, -0.00011467, 0.00232781],
-                             [0.00817071, -0.00006452, 0.99996662, 0.03096576],
-                             [0., 0., 0., 1.]])
+    # T_imu_to_cam = np.array([[0.99972615, -0.02192887, -0.00817016, -0.02054695],
+    #                          [0.02192867, 0.99975953, -0.00011467, 0.00232781],
+    #                          [0.00817071, -0.00006452, 0.99996662, 0.03096576],
+    #                          [0., 0., 0., 1.]])
 
-    R_imu_to_cam = T_imu_to_cam[0:3, 0:3]
-    t_imu_to_cam = T_imu_to_cam[0:3, 3:4].flatten()
+    # R_imu_to_cam = T_imu_to_cam[0:3, 0:3]
+    # t_imu_to_cam = T_imu_to_cam[0:3, 3:4].flatten()
 
-    Rij = R_j @ R_i.T  # 先计算出在IMU坐标系下的旋转矩阵和平移
-    tij = t_j - Rij @ t_i
-    tij = R_imu_to_cam.T @ Rij @ t_imu_to_cam + R_imu_to_cam.T @ tij - R_imu_to_cam.T @ t_imu_to_cam  # 再计算在相机系下的旋转和平移
-    Rij = R_imu_to_cam.T @ Rij @ R_imu_to_cam
+    # Rij = R_j @ R_i.T  # 先计算出在IMU坐标系下的旋转矩阵和平移
+    # tij = t_j - Rij @ t_i
+    # tij = R_imu_to_cam.T @ Rij @ t_imu_to_cam + R_imu_to_cam.T @ tij - R_imu_to_cam.T @ t_imu_to_cam  # 再计算在相机系下的旋转和平移
+    # Rij = R_imu_to_cam.T @ Rij @ R_imu_to_cam
+    
+    Rij = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1]
+    ])
+
+    tij = np.array([0.1, 0.1, 0])
 
     print("Rij is", Rij)
     print("tij is", tij)
 
     beg_time = time.time()
-    deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
-    # blur_image = make_motionblur(Rij, tij, sharp_image, depth_image, K)
+    # deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
+    blur_image = make_motionblur(Rij, tij, sharp_image, depth_image, K)
     print("elasped {0:.6f} seconds".format(time.time() - beg_time))
     # # 显示灰度图像
     # # plt.imshow(deblur_image, cmap='gray')
