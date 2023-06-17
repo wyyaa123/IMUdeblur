@@ -1,15 +1,17 @@
+import cv2 as cv
 import numpy as np
+from matplotlib import pyplot as plt
+
+import include.PSF as _PSF
+import include.Image as _Image
 
 if __name__ == '__main__':
-    Ri = np.array([[1, 0, 0],
-                   [0, 1, 0],
-                   [0, 0, 1]])
-    
-    Rj = np.array([[0.07862117, 0.99602868, 0.04186839],
-                   [-0.01320098, 0.04303489, -0.99899005],
-                   [-0.99682086, 0.07798877, 0.01653194]])
-    
-    Rij = Rj @ np.linalg.inv(Ri)
-    
-    print(Rij)
-    
+
+    kernel = _PSF.PSFFunction(10, 30)
+    kernel.calculate_h()
+    PSF = _Image.kernel_compliant(kernel.hh)
+    # PSF *= 2550
+    # PSF = PSF.astype(np.uint8)
+    plt.imshow(PSF, cmap='gray', vmin=0, vmax=0.1)
+    plt.axis('off')
+    plt.show()
