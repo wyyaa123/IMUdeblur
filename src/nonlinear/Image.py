@@ -210,7 +210,7 @@ def nimage_block_merge(image_blocks: np.array, n: int, overlap: int, vis: bool =
     if vis:
         # plt.imshow(raw_image, cmap="gray", vmin=0, vmax=255)
         plt.imshow(raw_image, cmap="gray")
-        plt.axis('on')  # 隐藏坐标轴
+        plt.axis('off')  # 隐藏坐标轴
         # plt.xticks(np.arange(0, raw_image.shape[1], 1))
         # plt.yticks(np.arange(0, raw_image.shape[0], 1))
         plt.show()
