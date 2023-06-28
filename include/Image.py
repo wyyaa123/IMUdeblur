@@ -6,6 +6,7 @@
 import sys
 
 from numpy import ndarray
+import scipy
 
 sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
 import numpy as np
@@ -81,7 +82,7 @@ def segment_nimage(gray: np.ndarray, n: int, overlap: int, vis: bool = None) -> 
         for i in range(image_blocks.shape[0]):
             for j in range(image_blocks.shape[1]):
                 print("第{0}行, 第{1}列, 大小:{2}".format(i, j, image_blocks[i, j].shape))
-            
+
         _, axes = plt.subplots(nrows=n, ncols=n)
         for i in range(n):  # row
             for j in range(n):  # col
@@ -200,8 +201,6 @@ def nimage_block_merge(image_blocks: np.ndarray, n: int, overlap: int, vis: bool
             # print("temp_img.shape is", temp_img.shape)
             temp_img = imgFusion(temp_img, gray_block, overlap, image_blocks[i, 0].shape, cnt, True)
             # print("gray_block.shape is", gray_block.shape)
-            if j == n - 1:
-                temp_img = temp_img[:, :temp_img.shape[1] - overlap // 2]
             # print("temp_img.shape is", temp_img.shape)
             # os.system("cls")
             # cv.imshow("temp_img", temp_img / 256)
@@ -261,7 +260,8 @@ def get_homography(K: np.ndarray, R: np.ndarray, t: np.ndarray, n=np.ndarray([0,
 
 
 @singledispatch
-def calcu_each_block_psf(image_blocks: np.ndarray, n: int, H: np.ndarray, overlap: int = 16, vis: bool = None) -> tuple:  # diag = rad
+def calcu_each_block_psf(image_blocks: np.ndarray, n: int, H: np.ndarray, overlap: int = 16,
+                         vis: bool = None) -> tuple:  # diag = rad
     """
     计算每一个图像块的模糊核
     :param image_blocks:图像块数组
@@ -270,9 +270,10 @@ def calcu_each_block_psf(image_blocks: np.ndarray, n: int, H: np.ndarray, overla
     :param vis:# 如果vis=False,则blocks_psf里面的每一个元素是[l,theta], # 如果vis=True,则blocks_psf里面每一个元素都是一个模糊化的图像
     :return blocks_psf: 
     """
+    global kernel
     height_base, width_base = image_blocks[0, 0].shape[0] - overlap, image_blocks[0, 0].shape[1] - overlap
     blocks_psfs = np.empty((n, n), object)
-    psfs_image = np.zeros((N, N), np.ndarray)
+    psfs_image = np.zeros((n, n), np.ndarray)
 
     for i in range(n):
         for j in range(n):
@@ -296,9 +297,8 @@ def calcu_each_block_psf(image_blocks: np.ndarray, n: int, H: np.ndarray, overla
 
 
 @calcu_each_block_psf.register(bool)
-def _(H, image_blocks: np.ndarray, depth_image: np.ndarray, N: int, 
+def _(H, image_blocks: np.ndarray, depth_image: np.ndarray, N: int,
       K: np.ndarray, Rij: np.ndarray, tij: np.ndarray, overlap: int, vis: bool = False) -> tuple:
-    
     height_base, width_base = image_blocks[0, 0].shape[0] - overlap, image_blocks[0, 0].shape[1] - overlap
     blocks_psfs = np.zeros((N, N), object)
     psfs_image = np.zeros((N, N), np.ndarray)
@@ -306,7 +306,8 @@ def _(H, image_blocks: np.ndarray, depth_image: np.ndarray, N: int,
     for i in range(N):
         for j in range(N):
             blocki_y, blocki_x = height_base * (2 * i + 1) / 2, width_base * (2 * j + 1) / 2
-            depth = get_avedepth(depth_image, blocki_x, blocki_y, N) if not depth_image[int(blocki_y), int(blocki_x)] else depth_image[int(blocki_y), int(blocki_x)]
+            depth = get_avedepth(depth_image, blocki_x, blocki_y, N) if not depth_image[
+                int(blocki_y), int(blocki_x)] else depth_image[int(blocki_y), int(blocki_x)]
             # print("x is {0}, y is {1}, depth is {2}".format(blocki_x, blocki_y, depth))
             # 深度如果是0则取块的平均深度反之取点深度
             l, theta = calcu_pixel_motion(False, K, Rij, tij, np.array([blocki_x, blocki_y, 1]), depth * 1e-3)
@@ -314,7 +315,8 @@ def _(H, image_blocks: np.ndarray, depth_image: np.ndarray, N: int,
             kernel = PSF.PSFFunction(l, np.degrees(theta))
             kernel.calculate_h()
             if vis:
-                blurred = cv.filter2D(image_blocks[i, j], -1, kernel.hh, borderType=cv.BORDER_REPLICATE)
+                # blurred = cv.filter2D(image_blocks[i, j], -1, kernel.hh, borderType=cv.BORDER_REPLICATE)
+                blurred = warp_img(image_blocks[i, j], kernel.hh)
                 blocks_psfs[i, j] = blurred
             else:
                 blocks_psfs[i][j] = kernel.hh
@@ -333,9 +335,11 @@ def get_avedepth(depth: np.ndarray, x: np.int32, y: np.int32, N: np.int32) -> nd
     """
     extend_x = depth.shape[1] // N
     extend_y = depth.shape[0] // N
-    depth_slice = depth[int(y - 1 / 2 * extend_y): int(y + 1 / 2 * extend_y), int(x - 1 / 2 * extend_x): int(x + 1 / 2 * extend_x)]
+    depth_slice = depth[int(y - 1 / 2 * extend_y): int(y + 1 / 2 * extend_y),
+                  int(x - 1 / 2 * extend_x): int(x + 1 / 2 * extend_x)]
     ave_depth = np.mean(depth_slice)
     return ave_depth
+
 
 @singledispatch
 def calcu_pixel_motion(H: np.ndarray, point: np.ndarray) -> np.ndarray:
@@ -428,5 +432,24 @@ def kernel_compliant(kernel: np.ndarray, block_shape=(30, 40)) -> np.ndarray:
     new_height, new_width = block_shape
     new_kernel = np.zeros(block_shape, dtype=np.float32)
     new_kernel[new_height // 2 - math.ceil(pre_height / 2): new_height // 2 + math.floor(pre_height / 2),
-               new_width // 2 - math.ceil(pre_width / 2): new_width // 2 + math.floor(pre_width / 2)] = kernel
+    new_width // 2 - math.ceil(pre_width / 2): new_width // 2 + math.floor(pre_width / 2)] = kernel
     return new_kernel
+
+
+def warp_img(img, A):
+    if img.ndim != 2:
+        height, width, _ = img.shape
+        red = img[:, :, 0]
+        green = img[:, :, 1]
+        blue = img[:, :, 2]
+
+        red_out = (A @ red.flatten()).reshape(height, width)
+        green_out = (A @ green.flatten()).reshape(height, width)
+        blue_out = (A @ blue.flatten()).reshape(height, width)
+
+        warped = np.dstack((red_out, green_out, blue_out))
+    else:
+        height, width, _ = img.shape
+        warped = (A @ img.flatten()).reshape(height, width)
+
+    return warped

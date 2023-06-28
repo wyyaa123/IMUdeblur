@@ -1,16 +1,17 @@
-'''
+"""
 Descripttion: todo
 Author: orCate
 Date: 2023-05-19 15:18:54
 LastEditors: orCate
-LastEditTime: 2023-06-17 19:15:51
-'''
+LastEditTime: 2023-06-26 11:46:07
+"""
 import sys
 
 sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
 import numpy as np
 import cv2 as cv
 import include.Image as _Image
+import include.admm as _admm
 import matplotlib.pyplot as plt
 import include.PSF as _PSF
 import include.frame as _Frame
@@ -53,7 +54,7 @@ def Roation_to_Euler(R: np.ndarray) -> np.ndarray:
 
 
 def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: np.ndarray, depth_image: np.ndarray, K: np.ndarray,
-                 N: int = 16,
+                 N: int = 2,
                  overlap: int = 16) -> np.ndarray:
     """
     : param Rij: 两帧之间的旋转矩阵
@@ -71,11 +72,13 @@ def deblur_byIMU(Rij: np.ndarray, tij: np.ndarray, raw_image: np.ndarray, depth_
     laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
     for row in range(image_blocks.shape[0]):
         for col in range(image_blocks.shape[1]):
-            # image_blocks[row, col] = _Image.winerFilter(image_blocks[row, col], block_psfs[row, col], 0.1, 0.01)
+            # image_blocks[row, col] = _Image.winerFilter(image_blocks[row, col], block_psfs[row, col], 0.1, 0.001)
+            # image_blocks[row, col] = _Image.inverseFilter(image_blocks[row, col], block_psfs[row, col])
             image_blocks[row, col] = _Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.001)
+            # image_blocks[row, col] = _admm.PlugPlayADMM_deblur(image_blocks[row, col], block_psfs[row, col])
 
     deblur_image = _Image.nimage_block_merge(image_blocks, N, overlap, False)
-    psfs_merge = _Image.nimage_block_merge(psfs_images, N, overlap, False)
+    psfs_merge = _Image.nimage_block_merge(psfs_images, N, overlap, True)
     return deblur_image
 
 
@@ -93,14 +96,22 @@ def make_motionblur(Rij: np.ndarray, tij: np.ndarray, raw_image: np.ndarray, dep
     """
     image_blocks = _Image.segment_nimage(raw_image, N, overlap, False)
 
-    block_psfs, psfs_images = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap, True)
+    block_psfs, _ = _Image.calcu_each_block_psf(False, image_blocks, depth_image, N, K, Rij, tij, overlap, True)
 
     motion_blur_image = _Image.nimage_block_merge(block_psfs, N, overlap, False)
-    psfs_merge = _Image.nimage_block_merge(psfs_images, N, overlap, True)
     return motion_blur_image
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
+    # ===========================================================================================
+
+    R_bi_to_w = quaternion_to_Rotation(np.array([0.44900230642802, -0.87816696887247, 0.16091118955559, 0.036432028209499]))
+
+    R_bj_to_w = quaternion_to_Rotation(np.array([-0.43550955398266, 0.88435353717493, -0.16530548853347, -0.030403044859397]))
+
+    t_bi_to_w = np.array([-0.29500606610677, -0.89902966682498, 1.3352814956049])  # 1686660083.491411
+    t_bj_to_w = np.array([-0.28808726018728, -0.90015202182044, 1.3319944829869])  # 1686660083.503916
+
     # ===========================================================================================
 
     # R_i = np.array([[-0.91846082, -0.0865836, 0.38610487], # 相差10ms
@@ -116,16 +127,16 @@ if __name__ == '__main__':
 
     # ===========================================================================================
 
-    R_i = np.array([[-0.28162419, 0.01531572, -0.95983503],
-                    [0.95927558, 0.04217897, -0.28078701],
-                    [0.03616939, -0.99940802, -0.02655959]])  # 1686660103.5867586
-
-    R_j = np.array([[-0.26114005, 0.01669909, -0.96544284],
-                    [0.96490992, 0.04196719, -0.26027],
-                    [0.03616066, -0.99925611, -0.02706495]])  # 1686660103.5992334
-
-    t_i = np.array([1.47639905, 0.44433637, 0.57882645])  # 1686660103.5867586
-    t_j = np.array([1.4655684, 0.45022566, 0.57860039])  # 1686660103.5992334
+    # R_bi_to_w = np.array([[-0.28162419, 0.01531572, -0.95983503], # 相差10ms
+    #                       [0.95927558, 0.04217897, -0.28078701],
+    #                       [0.03616939, -0.99940802, -0.02655959]])  # 1686660103.5867586
+    #
+    # R_bj_to_w = np.array([[-0.26114005, 0.01669909, -0.96544284],
+    #                       [0.96490992, 0.04196719, -0.26027],
+    #                       [0.03616066, -0.99925611, -0.02706495]])  # 1686660103.5992334
+    #
+    # t_bi_to_w = np.array([1.47639905, 0.44433637, 0.57882645])  # 1686660103.5867586
+    # t_bj_to_w = np.array([1.4655684, 0.45022566, 0.57860039])  # 1686660103.5992334
 
     # ===========================================================================================
 
@@ -157,17 +168,17 @@ if __name__ == '__main__':
 
     # =============================================================================================
 
-    # R_i = np.array([[-0.44073751,  0.00646143, -0.89793164], # 1686660103.5593135
-    #                 [ 0.89694646,  0.05055928, -0.43989013],
-    #                 [ 0.04254428, -0.99898675, -0.02807089]])
+    # R_bi_to_w = np.array([[-0.44073751, 0.00646143, -0.89793164],  # 1686660103.5593135
+    #                       [0.89694646, 0.05055928, -0.43989013],
+    #                       [0.04254428, -0.99898675, -0.02807089]])
 
-    # R_j = np.array([[-0.38246239,  0.00986317, -0.92413358], # 1686660103.591749
-    #                 [ 0.92342229,  0.04473489, -0.38169057],
-    #                 [ 0.03756886, -0.99914921, -0.02621207]])
+    # R_bj_to_w = np.array([[-0.38246239, 0.00986317, -0.92413358],  # 1686660103.591749
+    #                       [0.92342229, 0.04473489, -0.38169057],
+    #                       [0.03756886, -0.99914921, -0.02621207]])
 
-    # t_i = np.array([1.5511742, 0.45377332, 0.5593354])  # 1686660103.5593135
+    # t_bi_to_w = np.array([1.5511742, 0.45377332, 0.5593354])  # 1686660103.5593135
 
-    # t_j = np.array([1.52029517, 0.46124946, 0.56066473])  # 1686660103.591749
+    # t_bj_to_w = np.array([1.52029517, 0.46124946, 0.56066473])  # 1686660103.591749
 
     # =============================================================================================
 
@@ -185,60 +196,50 @@ if __name__ == '__main__':
 
     # =============================================================================================
 
-    # blur_image = cv.imread("./1686660103.600574.png", cv.IMREAD_GRAYSCALE)
-    # depth_image = np.load("./1686660103.600574.npy")
-    
+    image = cv.imread("./4090.032372.png", cv.IMREAD_GRAYSCALE)
+    blur_image = np.zeros((460, 740), dtype=np.float32)
+    blur_image[:458, :739] = image
+    depth_image = np.ones((blur_image.shape), dtype=np.float32)
+
     # scaled_image = cv.normalize(depth_image, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
     # # test_image = depth_image / 256
     # plt.imshow(depth_image, cmap="gray")
     # plt.show()
-    sharp_image = cv.imread("./test1/1686713423.894630.png", cv.IMREAD_GRAYSCALE)
+    # sharp_image = cv.imread("./test1/1686713423.894630.png", cv.IMREAD_GRAYSCALE)
 
     # cv.imshow("rsize", sharp_image)
     # cv.waitKey()
 
-    depth_image = np.load("./test1/1686713423.894630.npy")
+    # depth_image = np.load("./test1/1686713423.894630.npy")
 
-    K = np.array([[591.9406904278699, 0, 322.04277865756234],
-                  [0, 591.2925794176291, 248.3881726957238],
+    # K = np.array([[591.9406904278699, 0, 322.04277865756234],
+    #               [0, 591.2925794176291, 248.3881726957238],
+    #               [0, 0, 1]])
+    
+    K = np.array([[726.28741455078, 0, 354.6496887207],
+                  [0, 726.28741455078, 186.46566772461],
                   [0, 0, 1]])
 
-    # T_imu_to_cam = np.array([[0.99972615, -0.02192887, -0.00817016, -0.02054695],
-    #                          [0.02192867, 0.99975953, -0.00011467, 0.00232781],
-    #                          [0.00817071, -0.00006452, 0.99996662, 0.03096576],
-    #                          [0., 0., 0., 1.]])
+    T_cam_to_imu = np.array([[0.99972615, -0.02192887, -0.00817016, -0.02054695],
+                             [0.02192867, 0.99975953, -0.00011467, 0.00232781],
+                             [0.00817071, -0.00006452, 0.99996662, 0.03096576],
+                             [0., 0., 0., 1.]])
 
-    # R_imu_to_cam = T_imu_to_cam[0:3, 0:3]
-    # t_imu_to_cam = T_imu_to_cam[0:3, 3:4].flatten()
+    R_cam_to_imu = T_cam_to_imu[0:3, 0:3]
+    t_cam_to_imu = T_cam_to_imu[0:3, 3:4].flatten()
 
-    # Rij = R_j @ R_i.T  # 先计算出在IMU坐标系下的旋转矩阵和平移
-    # tij = t_j - Rij @ t_i
-    # tij = R_imu_to_cam.T @ Rij @ t_imu_to_cam + R_imu_to_cam.T @ tij - R_imu_to_cam.T @ t_imu_to_cam  # 再计算在相机系下的旋转和平移
-    # Rij = R_imu_to_cam.T @ Rij @ R_imu_to_cam
-    
-    Rij = np.array([
-        [1, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1]
-    ])
+    R_imu_to_cam = R_cam_to_imu.T
+    t_imu_to_cam = -t_cam_to_imu
 
-    tij = np.array([0.1, 0.1, 0])
-
-    print("Rij is", Rij)
-    print("tij is", tij)
+    Rij = R_imu_to_cam @ R_bj_to_w.T @ R_bi_to_w @ R_cam_to_imu
+    tij = R_imu_to_cam @ R_bj_to_w.T @ R_bi_to_w @ t_cam_to_imu + R_imu_to_cam @ R_bj_to_w.T @ t_bi_to_w - R_imu_to_cam @ R_bj_to_w.T @ t_bj_to_w - R_imu_to_cam @ t_cam_to_imu
 
     beg_time = time.time()
-    # deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
-    blur_image = make_motionblur(Rij, tij, sharp_image, depth_image, K)
+    deblur_image = deblur_byIMU(Rij, tij, blur_image, depth_image, K)
+    # blur_image = make_motionblur(Rij, tij, sharp_image, depth_image, K)
     print("elasped {0:.6f} seconds".format(time.time() - beg_time))
-    # # 显示灰度图像
-    # # plt.imshow(deblur_image, cmap='gray')
-    # # plt.axis('off')  # 关闭坐标轴
-    # # plt.show()
 
-    # cv.namedWindow("deblur", cv.WINDOW_NORMAL)
-    # cv.imshow("deblur", deblur_image / 256)
-    # cv.waitKey()
-    cv.namedWindow("blur", cv.WINDOW_NORMAL)
-    cv.imshow("blur", blur_image / 256)
+    cv.namedWindow("deblur", cv.WINDOW_NORMAL)
+    cv.imshow("deblur", deblur_image / 256)
     cv.waitKey()
+    
