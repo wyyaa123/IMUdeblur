@@ -7,7 +7,7 @@ LastEditTime: 2023-06-26 11:46:07
 """
 import sys
 
-sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
+sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\图像去模糊\\IMUdeblur")
 import numpy as np
 import cv2 as cv
 import include.Image as _Image

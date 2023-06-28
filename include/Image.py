@@ -8,7 +8,7 @@ import sys
 from numpy import ndarray
 import scipy
 
-sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\IMUdeblur\\")
+sys.path.append("C:\\Users\\南九的橘猫\\Desktop\\图像去模糊\\IMUdeblur")
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import singledispatch
