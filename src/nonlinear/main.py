@@ -9,6 +9,30 @@ import Image
 import time
 
 
+def deblur_byIMU(H: np.ndarray, raw_image: np.ndarray, N: int = 16, overlap: int = 16) -> np.ndarray:
+    """
+    : param Rij: 两帧之间的旋转矩阵
+    : param tij: 两帧之间的位移
+    : param raw_image: 原模糊图像
+    : param depth_image: 与模糊图像匹配的深度图
+    : param K: 相机内参
+    : param N: 原图要分割的块数
+    : param overlap: 每一块的每一边要向外拓展的像素数
+    """
+    image_blocks = Image.segment_nimage(raw_image, N, overlap, False)
+
+    block_psfs = Image.calcu_each_block_psf(image_blocks, N, H, False)
+
+    laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
+    for row in range(image_blocks.shape[0]):
+        for col in range(image_blocks.shape[1]):
+            # image_blocks[row, col] = _Image.winerFilter(image_blocks[row, col], block_psfs[row, col], 0.1, 0.01)
+            image_blocks[row, col] = Image.cls_filter(image_blocks[row, col], block_psfs[row, col], laplacian, 0.001)
+
+    deblur_image = Image.nimage_block_merge(image_blocks, N, overlap, True)
+    return deblur_image
+
+
 if __name__ == '__main__':
     """
     # width = 320
@@ -148,6 +172,7 @@ if __name__ == '__main__':
     # flag : bool = cv.imwrite("./block{0}{1}.png".format(i, j), blocks_image[i, j]) print(flag) # print(blocks_psf)
     # Raw_image = nimage_block_merge(image_blocks=image_blocks, n=N, overlap=extend, vis=False)  # 显示没有模糊化的原图拼接结果
     blur_image = Image.nimage_block_merge(blocks_psf, N, overlap=extend, vis=True) # 显示模糊化之后的拼接结果
+    deblur_byIMU(Homograph, blur_image)
     # print(blur_image.shape)
     # 注意calcu_each_block_psf中的vis=True时才可用
     print("elapsed {0:.5f} seconds".format(time.time() - beg_time))

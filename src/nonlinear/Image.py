@@ -12,6 +12,7 @@ from functools import singledispatch
 import cv2 as cv
 import math
 import PSF
+import scipy.ndimage
 
 
 def image_fft(gray, vis: bool = None) -> None:
@@ -273,7 +274,8 @@ def calcu_each_block_psf(image_blocks: np.array, n: int, H: np.array, vis: bool 
             if vis:
                 kernel = PSF.PSFFunction(l, theta * 180 / np.pi)
                 kernel.calculate_h()
-                blurred = cv.filter2D(image_blocks[i, j], -1, kernel.hh, borderType=cv.BORDER_REPLICATE)
+                # blurred = cv.filter2D(image_blocks[i, j], -1, kernel.hh, borderType=cv.BORDER_REPLICATE)
+                blurred = scipy.ndimage.correlate(image_blocks[i, j], kernel.hh)
                 # kernel = get_motion_psf(image_blocks[i, j].shape, theta * 180 / np.pi, l)
                 # blurred = cv.filter2D(image_blocks[i, j], -1, kernel, borderType=cv.BORDER_REPLICATE)
                 blocks_psfs[i, j] = blurred
