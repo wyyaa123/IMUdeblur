@@ -9,6 +9,7 @@
 
 # here put the import lib
 import sys
+
 sys.path.append(f"F:\IMUdeblur")
 
 import os
@@ -20,27 +21,30 @@ import time
 from PIL import Image
 import util.Image as _Image
 
-def computeBlurfield(R: np.ndarray, 
-                     K: np.ndarray, 
-                     t: np.ndarray, 
-                     height: np.int32, 
-                     width: np.int32, 
-                     part: np.int32 = 0, 
+
+def computeBlurfield(R: np.ndarray,
+                     K: np.ndarray,
+                     t: np.ndarray,
+                     height_base: np.int32,
+                     width_base: np.int32,
+                     part: tuple = (0, 0),
                      depth: np.float32 = np.float32('inf'),
-                     n: np.ndarray = np.array[0, 0, 1]) -> tuple:
+                     n: np.ndarray = np.array([0, 0, 1])) -> tuple:
     Kinv = np.linalg.inv(K)
 
-    xi, yi = np.meshgrid(range(width), range(height))
+    xi, yi = np.meshgrid(range(part[0] * width_base, (part[0] + 1) * width_base),
+                         range(height_base * part[1], height_base * (part[1] + 1)))
+
     xi = xi.astype(np.float_)
     yi = yi.astype(np.float_)
 
-    Bx = np.zeros((height, width), dtype=np.float_)
-    By = np.zeros((height, width), dtype=np.float_)
+    Bx = np.zeros((height_base, width_base), dtype=np.float_)
+    By = np.zeros((height_base, width_base), dtype=np.float_)
 
-    for row in range(part, (part + 1) * height):
+    for row in range(height_base):
         x = xi[row, :]
         y = yi[row, :]
-        z = np.ones(width, dtype=np.float_)
+        z = np.ones(width_base, dtype=np.float_)
         X = np.vstack((x, y, z))
 
         # R1 = R[:, :, row]
@@ -52,8 +56,8 @@ def computeBlurfield(R: np.ndarray,
         Xp[0, :] = Xp[0, :] / Xp[2, :]
         Xp[1, :] = Xp[1, :] / Xp[2, :]
 
-        Bx[row, :] = np.around(Xp[0, :] - X[0, :]) # 矩阵元素取整, 四舍五入, Bx的元素是原图每一个像素点坐标经过在曝光时间内经过变换之后x方向上的变化
-        By[row, :] = np.around(Xp[1, :] - X[1, :]) # 矩阵元素取整, 四舍五入, By的元素是原图每一个像素点坐标经过在曝光时间内经过变换之后y方向上的变化
+        Bx[row, :] = np.around(Xp[0, :] - X[0, :])  # 矩阵元素取整, 四舍五入, Bx的元素是原图每一个像素点坐标经过在曝光时间内经过变换之后x方向上的变化
+        By[row, :] = np.around(Xp[1, :] - X[1, :])  # 矩阵元素取整, 四舍五入, By的元素是原图每一个像素点坐标经过在曝光时间内经过变换之后y方向上的变化
 
     # Make sure that y-component is negative
     ypos = By > 0
@@ -108,8 +112,8 @@ def plotBlurVectors(Bx, By, img, outpath, idx):
     fname = '%04d.png' % (idx)
     plt.savefig(outpath + '/visualization/' + fname, bbox_inches='tight')
     plt.close()
-    
-    
+
+
 def createOutputFolders(outpath):
     try:
         os.makedirs(outpath + '/blurred')
@@ -119,33 +123,31 @@ def createOutputFolders(outpath):
     except FileExistsError:
         # Directory already exists
         pass
-    
-    
+
+
 def writeImage(img, outpath, folder, idx):
     fname = '%04d.png' % idx
     img = Image.fromarray(img.astype(np.uint8))
     img.save(outpath + '/' + folder + '/' + fname)
 
-    
+
 if __name__ == '__main__':
-    
     # =============================================================================================
 
-    R_bi_to_w  = np.array([[ 0.78269262,  0.08492094, -0.61723999], # 1686660128.295778
-                           [ 0.61881239,  0.00949855,  0.78599333],
-                           [ 0.07258099, -0.99674607, -0.04509755]])
+    R_bi_to_w = np.array([[0.78269262, 0.08492094, -0.61723999],  # 1686660128.295778
+                          [0.61881239, 0.00949855, 0.78599333],
+                          [0.07258099, -0.99674607, -0.04509755]])
 
-    R_bj_to_w  = np.array([[ 0.73215635,  0.08662814, -0.67606126], # 1686660128.3307908
-                           [ 0.67718265,  0.02018225,  0.73595687],
-                           [ 0.07737518, -0.99634553, -0.043873  ]])
+    R_bj_to_w = np.array([[0.73215635, 0.08662814, -0.67606126],  # 1686660128.3307908
+                          [0.67718265, 0.02018225, 0.73595687],
+                          [0.07737518, -0.99634553, -0.043873]])
 
     t_bi_to_w = np.array([-1.20150166, 0.29387971, 0.68290318])  # 1686660128.295778
 
     t_bj_to_w = np.array([-1.20639181, 0.25763614, 0.68240881])  # 1686660128.3307908
 
     # =============================================================================================
-    
-    
+
     K = np.array([[726.28741455078, 0, 354.6496887207],
                   [0, 726.28741455078, 186.46566772461],
                   [0, 0, 1]])
@@ -163,18 +165,17 @@ if __name__ == '__main__':
 
     Rij = R_imu_to_cam @ R_bj_to_w.T @ R_bi_to_w @ R_cam_to_imu
     tij = R_imu_to_cam @ R_bj_to_w.T @ R_bi_to_w @ t_cam_to_imu + R_imu_to_cam @ R_bj_to_w.T @ t_bi_to_w - R_imu_to_cam @ R_bj_to_w.T @ t_bj_to_w - R_imu_to_cam @ t_cam_to_imu
-    
+
     img = cv.imread(f"../data/1686660128.338513.png", cv.IMREAD_COLOR)
     outpath = f"../data/"
-    
+
     height, width = img.shape[:2]
-    
+
     Bx, By = computeBlurfield(Rij, K, tij, height, width)
 
     createOutputFolders(outpath)
     writeImage(img, outpath, 'blurred/', idx=0)
     writeImage(Bx, outpath, 'blurx/', idx=0)
     writeImage(By, outpath, 'blury/', idx=0)
-    
+
     plotBlurVectors(Bx, By, img, outpath, idx=0)
-    

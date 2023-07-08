@@ -194,8 +194,8 @@ def nimage_block_merge(image_blocks: np.ndarray, n: int, overlap: int, vis: bool
         temp_img = image_blocks[i, 0]
         for j in range(1, n):
             gray_block = image_blocks[i, j]
-            if gray_block.ndim != 2:
-                gray_block = cv.cvtColor(gray_block, cv.COLOR_BGR2GRAY)
+            # if gray_block.ndim != 2:
+            #     gray_block = cv.cvtColor(gray_block, cv.COLOR_BGR2GRAY)
             # raw_image[i * height_base: (i + 1) * height_base, j * width_base: (j + 1) * width_base] = gray_block
             # temp_img = imgFusion(temp_img, image_blocks[i, j], overlop, True)
             # print(i, j)
@@ -454,3 +454,15 @@ def warp_img(img, A):
         warped = (A @ img.flatten()).reshape(height, width)
 
     return warped
+
+def get_psnr(blurred_img: np.ndarray, deblurred_img: np.ndarray):
+    data_type = blurred_img.dtype
+
+    # 获取数据类型的位数
+    num_bits = np.dtype(data_type).itemsize * 8
+
+    MSE = np.sum((deblurred_img.flatten() - blurred_img.flatten()) ** 2) / (blurred_img.shape[0] * blurred_img.shape[1])
+
+    psnr = 10 * np.log10((2 ** num_bits - 1) ** 2 / MSE)
+
+    return psnr
